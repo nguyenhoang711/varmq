@@ -26,6 +26,8 @@ type Queue[T, R any] struct {
 	mx            *sync.Mutex
 }
 
+// Creates a new Queue with the specified concurrency and worker function.
+// O(1)
 func New[T, R any](concurrency uint, worker func(T) R) *Queue[T, R] {
 	channels, jobsMap := make([]chan *Job[T, R], concurrency), make(map[JobId]*list.Element)
 	wg, mx, jobQueue := new(sync.WaitGroup), new(sync.Mutex), new(list.List)
@@ -35,6 +37,8 @@ func New[T, R any](concurrency uint, worker func(T) R) *Queue[T, R] {
 	return queue.Init()
 }
 
+// Initializes the Queue by starting the worker goroutines.
+// O(n) where n is the concurrency
 func (q *Queue[T, R]) Init() *Queue[T, R] {
 	for i := range q.concurrency {
 		q.channels[i] = make(chan *Job[T, R])
@@ -49,15 +53,13 @@ func (q *Queue[T, R]) Init() *Queue[T, R] {
 				q.mx.Lock()
 				// adding the free channel to stack
 				q.channels = append(q.channels, channel)
+				q.curProcessing--
 
 				// process only if the queue is not empty
 				if q.jobQueue.Len() != 0 {
 					q.processNextJob()
 				}
-
-				q.curProcessing--
 				q.mx.Unlock()
-
 			}
 		}(q.channels[i])
 	}
@@ -65,7 +67,8 @@ func (q *Queue[T, R]) Init() *Queue[T, R] {
 	return q
 }
 
-// Picking the next free channel from the stack
+// Picks the next available channel for processing a job.
+// O(1)
 func (q *Queue[T, R]) pickNextChannel() chan<- *Job[T, R] {
 	q.mx.Lock()
 	l := len(q.channels)
@@ -77,14 +80,20 @@ func (q *Queue[T, R]) pickNextChannel() chan<- *Job[T, R] {
 	return channel
 }
 
+// Returns the number of jobs pending in the queue.
+// O(1)
 func (q *Queue[T, R]) PendingCount() int {
 	return q.jobQueue.Len()
 }
 
+// Returns the number of jobs currently being processed.
+// O(1)
 func (q *Queue[T, R]) CurrentProcessingCount() uint {
 	return q.curProcessing
 }
 
+// Add adds a new job to the queue and returns the job ID and a channel to receive the response.
+// O(1)
 func (q *Queue[T, R]) Add(data T) (JobId, <-chan R) {
 	jobId, _ := utils.ShortID(5)
 
@@ -94,11 +103,10 @@ func (q *Queue[T, R]) Add(data T) (JobId, <-chan R) {
 		response: make(chan R, 1),
 	}
 
-	q.wg.Add(1)
-
 	q.mx.Lock()
 	el := q.jobQueue.PushBack(&job)
 	q.jobsMap[job.id] = el
+	q.wg.Add(1)
 
 	// process next job only when the current processing job count is less than the concurrency
 	if uint(q.jobQueue.Len())+q.curProcessing <= q.concurrency {
@@ -109,20 +117,34 @@ func (q *Queue[T, R]) Add(data T) (JobId, <-chan R) {
 	return job.id, job.response
 }
 
+// Adds multiple jobs to the queue and returns a channel to receive all responses.
+// O(n) where n is the number of jobs added
 func (q *Queue[T, R]) AddAll(data ...T) <-chan R {
-	outs := make([]<-chan R, 0)
+	wg := new(sync.WaitGroup)
+	merged := make(chan R)
 
+	wg.Add(len(data))
 	for _, item := range data {
-		_, out := q.Add(item)
+		_, res := q.Add(item)
 
-		q.mx.Lock()
-		outs = append(outs, out)
-		q.mx.Unlock()
+		go func(c <-chan R) {
+			defer wg.Done()
+			for val := range c {
+				merged <- val
+			}
+		}(res)
 	}
 
-	return utils.FanIn(outs)
+	go func() {
+		wg.Wait()
+		close(merged)
+	}()
+
+	return merged
 }
 
+// Removes a job from the queue by its ID.
+// O(1)
 func (q *Queue[T, R]) RemoveJob(id JobId) {
 	q.mx.Lock()
 	el, has := q.jobsMap[id]
@@ -140,6 +162,8 @@ func (q *Queue[T, R]) RemoveJob(id JobId) {
 	q.mx.Unlock()
 }
 
+// Processes the next job in the queue.
+// O(1)
 func (q *Queue[T, R]) processNextJob() {
 	element := q.jobQueue.Front()
 
@@ -161,10 +185,12 @@ func (q *Queue[T, R]) processNextJob() {
 	}(value)
 }
 
+// Waits until all pending jobs in the queue are processed.
 func (q *Queue[T, R]) WaitUntilFinished() {
 	q.wg.Wait()
 }
 
+// Closes the queue and resets all internal states.
 func (q *Queue[T, R]) Close() {
 	// reset all stores
 	q.mx.Lock()
