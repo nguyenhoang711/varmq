@@ -71,12 +71,12 @@ func (q *Queue[T, R]) Init() *Queue[T, R] {
 // O(1)
 func (q *Queue[T, R]) pickNextChannel() chan<- *Job[T, R] {
 	q.mx.Lock()
+	defer q.mx.Unlock()
 	l := len(q.channels)
 
 	// pop the last free channel
 	channel := q.channels[l-1]
 	q.channels = q.channels[:l-1]
-	q.mx.Unlock()
 	return channel
 }
 
@@ -109,7 +109,7 @@ func (q *Queue[T, R]) Add(data T) (JobId, <-chan R) {
 	q.wg.Add(1)
 
 	// process next job only when the current processing job count is less than the concurrency
-	if uint(q.jobQueue.Len())+q.curProcessing <= q.concurrency {
+	if q.curProcessing < q.concurrency {
 		q.processNextJob()
 	}
 	q.mx.Unlock()
