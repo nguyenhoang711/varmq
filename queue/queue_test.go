@@ -1,7 +1,6 @@
 package queue
 
 import (
-	"fmt"
 	"testing"
 	"time"
 )
@@ -53,14 +52,34 @@ func TestQueue_AddAll(t *testing.T) {
 }
 
 func TestQueue_RemoveJob(t *testing.T) {
-	q := New(2, func(data int) int {
+	q := New(1, func(data int) int {
 		time.Sleep(100 * time.Millisecond)
 		return data * 2
 	})
 	defer q.Close()
 
 	_, cancel := q.Add(5)
-	cancel()
+
+	_, cancel2 := q.Add(3)
+	_, cancel3 := q.Add(10)
+	_, cancel4 := q.Add(11)
+
+	cancel2()
+	cancel3()
+	cancel4()
+
+	time.Sleep(100 * time.Millisecond)
+	ok := cancel()
+
+	if ok != false {
+		t.Errorf("Expected processed job must return false but got true")
+	}
+
+	ok = cancel2()
+
+	if ok != false {
+		t.Error("Expected removed job must return false but got true")
+	}
 
 	if q.PendingCount() != 0 {
 		t.Errorf("Expected pending count to be 0, got %d", q.PendingCount())
@@ -158,7 +177,6 @@ func BenchmarkQueue_AddAll(b *testing.B) {
 	}
 
 	b.ResetTimer()
-	fmt.Println("Data:", b.N)
 	for i := 0; i < b.N; i++ {
 		out := q.AddAll(data...)
 

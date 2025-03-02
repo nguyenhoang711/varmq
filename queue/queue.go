@@ -5,9 +5,20 @@ import (
 	"sync"
 )
 
+// Status represents the status of a job.
+type Status int
+
+const (
+	PENDING Status = iota
+	PROCESSING
+	REMOVED
+	FINISHED
+)
+
 type Job[T, R any] struct {
 	data     T
 	response chan R
+	status   Status
 }
 
 type Queue[T, R any] struct {
@@ -39,12 +50,18 @@ func (q *Queue[T, R]) Init() *Queue[T, R] {
 
 		go func(channel chan *Job[T, R]) {
 			for job := range channel {
+				q.mx.Lock()
+				job.status = PROCESSING
+				q.mx.Unlock()
+
 				output := q.worker(job.data)
-				job.response <- output // sends the output to the job consumer
-				q.wg.Done()
-				close(job.response)
 
 				q.mx.Lock()
+				job.response <- output // sends the output to the job consumer
+				job.status = FINISHED
+				close(job.response)
+				q.wg.Done()
+
 				// adding the free channel to stack
 				q.channelsStack = append(q.channelsStack, channel)
 				q.curProcessing--
@@ -88,15 +105,17 @@ func (q *Queue[T, R]) CurrentProcessingCount() uint {
 
 // Adds a new job to the queue and returns a channel to receive the response and a cancel function.
 // O(1)
-func (q *Queue[T, R]) Add(data T) (<-chan R, func()) {
-	job := Job[T, R]{
-		data:     data,
-		response: make(chan R, 1),
-	}
-
+func (q *Queue[T, R]) Add(data T) (<-chan R, func() bool) {
 	q.mx.Lock()
 	defer q.mx.Unlock()
-	el := q.jobQueue.PushBack(&job)
+
+	job := &Job[T, R]{
+		data:     data,
+		response: make(chan R, 1),
+		status:   PENDING,
+	}
+
+	el := q.jobQueue.PushBack(job)
 	q.wg.Add(1)
 
 	// process next job only when the current processing job count is less than the concurrency
@@ -104,9 +123,16 @@ func (q *Queue[T, R]) Add(data T) (<-chan R, func()) {
 		q.processNextJob()
 	}
 
-	return job.response, func() {
-		q.RemoveJob(el)
-		close(job.response)
+	return job.response, func() bool {
+		switch job.status {
+		case FINISHED, PROCESSING, REMOVED:
+			return false
+		default:
+			q.removeJob(el)
+			close(job.response)
+			job.status = REMOVED
+			return true
+		}
 	}
 }
 
@@ -138,7 +164,7 @@ func (q *Queue[T, R]) AddAll(data ...T) <-chan R {
 
 // Removes a job from the queue by its element.
 // O(1)
-func (q *Queue[T, R]) RemoveJob(el *list.Element) {
+func (q *Queue[T, R]) removeJob(el *list.Element) {
 	q.mx.Lock()
 	defer q.mx.Unlock()
 	q.jobQueue.Remove(el)
