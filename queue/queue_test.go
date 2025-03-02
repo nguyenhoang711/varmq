@@ -14,14 +14,11 @@ func TestQueue_Add(t *testing.T) {
 	})
 	defer q.Close()
 
-	jobId, resultChan := q.Add(5)
+	resultChan, _ := q.Add(5)
 	result := <-resultChan
 
 	if result != 10 {
 		t.Errorf("Expected result to be 10, got %d", result)
-	}
-	if jobId == "" {
-		t.Error("Expected jobId to not be empty")
 	}
 }
 
@@ -62,8 +59,8 @@ func TestQueue_RemoveJob(t *testing.T) {
 	})
 	defer q.Close()
 
-	jobId, _ := q.Add(5)
-	q.RemoveJob(jobId)
+	_, cancel := q.Add(5)
+	cancel()
 
 	if q.PendingCount() != 0 {
 		t.Errorf("Expected pending count to be 0, got %d", q.PendingCount())
@@ -116,6 +113,26 @@ func TestQueue_Concurrency(t *testing.T) {
 	}
 }
 
+func TestQueue_WaitAndClose(t *testing.T) {
+	q := New(2, func(data int) int {
+		time.Sleep(100 * time.Millisecond)
+		return data * 2
+	})
+
+	q.Add(1)
+	q.Add(2)
+	q.Add(3)
+
+	q.WaitAndClose()
+
+	if q.PendingCount() != 0 {
+		t.Errorf("Expected pending count to be 0, got %d", q.PendingCount())
+	}
+	if q.CurrentProcessingCount() != 0 {
+		t.Errorf("Expected current processing count to be 0, got %d", q.CurrentProcessingCount())
+	}
+}
+
 func BenchmarkQueue_Add(b *testing.B) {
 	q := New(20, func(data int) int {
 		return data * 2
@@ -124,7 +141,7 @@ func BenchmarkQueue_Add(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_, out := q.Add(i)
+		out, _ := q.Add(i)
 		<-out
 	}
 }

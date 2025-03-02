@@ -16,12 +16,11 @@ func main() {
 		fmt.Printf("Ended Worker %d\n", data)
 		return data
 	})
-	defer q.Close()
+	defer q.WaitAndClose()
 	start := time.Now()
 	defer func() {
 		fmt.Printf("Took %s\n", time.Since(start))
 	}()
-	defer q.WaitUntilFinished()
 
 	vals := make([]int, 100)
 	for i := 0; i < 100; i++ {
@@ -39,7 +38,7 @@ func main() {
 
 	time.Sleep(time.Second * 5)
 
-	for i := 0; i < 100; i++ {
+	for i := 0; i < 30; i++ {
 		q.Add(i + 1)
 	}
 	fmt.Println("All tasks have been added 2")
