@@ -13,7 +13,7 @@ func TestQueue_Add(t *testing.T) {
 	})
 	defer q.Close()
 
-	resultChan, _ := q.Add(5)
+	resultChan := q.Add(5)
 	result := <-resultChan
 
 	if result != 10 {
@@ -48,41 +48,6 @@ func TestQueue_AddAll(t *testing.T) {
 
 	if actualSum != expectedSum {
 		t.Errorf("Expected sum of results to be %d, got %d", expectedSum, actualSum)
-	}
-}
-
-func TestQueue_RemoveJob(t *testing.T) {
-	q := New(1, func(data int) int {
-		time.Sleep(100 * time.Millisecond)
-		return data * 2
-	})
-	defer q.Close()
-
-	_, cancel := q.Add(5)
-
-	_, cancel2 := q.Add(3)
-	_, cancel3 := q.Add(10)
-	_, cancel4 := q.Add(11)
-
-	cancel2()
-	cancel3()
-	cancel4()
-
-	time.Sleep(100 * time.Millisecond)
-	ok := cancel()
-
-	if ok != false {
-		t.Errorf("Expected processed job must return false but got true")
-	}
-
-	ok = cancel2()
-
-	if ok != false {
-		t.Error("Expected removed job must return false but got true")
-	}
-
-	if q.PendingCount() != 0 {
-		t.Errorf("Expected pending count to be 0, got %d", q.PendingCount())
 	}
 }
 
@@ -160,7 +125,7 @@ func BenchmarkQueue_Add(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		out, _ := q.Add(i)
+		out := q.Add(i)
 		<-out
 	}
 }
