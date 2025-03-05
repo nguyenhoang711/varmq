@@ -38,34 +38,13 @@ func (pq *priorityQueue[T]) Pop() any {
 	return item
 }
 
-// removeAt removes the item at index i from the heap, then re-heapifies.
-// Returns the removed item.
-func (pq *priorityQueue[T]) removeAt(i int) *Item[T] {
-	n := pq.Len()
-
-	// Swap the item to remove with the last element.
-	pq.Swap(i, n-1)
-
-	// Pop the last element (which is the item we intended to remove).
-	popped := heap.Pop(pq).(*Item[T])
-
-	// If i < n-1, we swapped, so we may need to fix the heap property at i
-	// The standard approach is to bubble up or down from i.
-	if i < n-1 {
-		heap.Fix(pq, i) // O(log n)
-	}
-	return popped
-}
-
-// ---------------------------------------------------------------
-
 // PriorityQueue is the user-facing wrapper around priorityQueue[T].
 type PriorityQueue[T comparable] struct {
 	internal *priorityQueue[T]
 }
 
-// NewPriorityQueue initializes an empty priority queue.
-func NewPriorityQueue[T comparable]() *PriorityQueue[T] {
+// newPriorityQueue initializes an empty priority queue.
+func newPriorityQueue[T comparable]() *PriorityQueue[T] {
 	pq := &priorityQueue[T]{
 		items: make([]*Item[T], 0),
 	}
@@ -79,7 +58,8 @@ func (q *PriorityQueue[T]) Len() int {
 }
 
 func (q *PriorityQueue[T]) Init() {
-	q = NewPriorityQueue[T]()
+	q.internal.items = make([]*Item[T], 0)
+	heap.Init(q.internal)
 }
 
 // Enqueue pushes a new item with the given priority.
@@ -96,19 +76,4 @@ func (q *PriorityQueue[T]) Dequeue() (T, bool) {
 	}
 	popped := heap.Pop(q.internal).(*Item[T]) // O(log n)
 	return popped.Value, true
-}
-
-// Peek returns the item with the smallest priority without removing it.
-func (q *PriorityQueue[T]) Peek() (T, int, bool) {
-	var zeroValue T
-	if q.internal.Len() == 0 {
-		return zeroValue, 0, false
-	}
-	top := q.internal.items[0]
-	return top.Value, top.Priority, true
-}
-
-// IsEmpty checks if the queue has no items.
-func (q *PriorityQueue[T]) IsEmpty() bool {
-	return q.internal.Len() == 0
 }

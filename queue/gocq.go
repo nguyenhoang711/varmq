@@ -14,43 +14,10 @@ type Gocq[T, R comparable] struct {
 	mx            *sync.Mutex
 }
 
-type Gopq[T, R comparable] struct {
-	*Gocq[T, R]
-}
-
-func (q *Gopq[T, R]) Add(data T, priority int) <-chan R {
-	q.mx.Lock()
-	defer q.mx.Unlock()
-
-	job := &Job[T, R]{
-		data:     data,
-		response: make(chan R, 1),
-	}
-
-	q.jobQueue.Enqueue(Item[*Job[T, R]]{Value: job, Priority: priority})
-	q.wg.Add(1)
-
-	// process next job only when the current processing job count is less than the concurrency
-	if q.curProcessing < q.concurrency {
-		q.processNextJob()
-	}
-
-	return job.response
-}
-
-func NewPQ[T, R comparable](concurrency uint, worker func(T) R) *Gopq[T, R] {
-	channelsStack := make([]chan *Job[T, R], concurrency)
-	wg, mx, jobQueue := new(sync.WaitGroup), new(sync.Mutex), NewPriorityQueue[*Job[T, R]]()
-
-	queue := &Gocq[T, R]{concurrency, worker, channelsStack, 0, jobQueue, wg, mx}
-
-	return &Gopq[T, R]{Gocq: queue}
-}
-
 // Creates a new Gocq with the specified concurrency and worker function.
 // O(1)
 func New[T, R comparable](concurrency uint, worker func(T) R) *Gocq[T, R] {
-	channelsStack := make([]chan *Job[T, R], concurrency)
+	channelsStack := make([]chan *Job[T, R], 0)
 	wg, mx, jobQueue := new(sync.WaitGroup), new(sync.Mutex), NewQueue[*Job[T, R]]()
 
 	queue := &Gocq[T, R]{concurrency, worker, channelsStack, 0, jobQueue, wg, mx}
@@ -62,7 +29,7 @@ func New[T, R comparable](concurrency uint, worker func(T) R) *Gocq[T, R] {
 // O(n) where n is the concurrency
 func (q *Gocq[T, R]) Init() *Gocq[T, R] {
 	for i := range q.concurrency {
-		q.channelsStack[i] = make(chan *Job[T, R])
+		q.channelsStack = append(q.channelsStack, make(chan *Job[T, R]))
 
 		go func(channel chan *Job[T, R]) {
 			for job := range channel {
@@ -139,27 +106,10 @@ func (q *Gocq[T, R]) Add(data T) <-chan R {
 // Adds multiple jobs to the queue and returns a channel to receive all responses.
 // O(n) where n is the number of jobs added
 func (q *Gocq[T, R]) AddAll(data ...T) <-chan R {
-	wg := new(sync.WaitGroup)
-	merged := make(chan R)
-
-	wg.Add(len(data))
-	for _, item := range data {
-		res := q.Add(item)
-
-		go func(c <-chan R) {
-			defer wg.Done()
-			for val := range c {
-				merged <- val
-			}
-		}(res)
-	}
-
-	go func() {
-		wg.Wait()
-		close(merged)
-	}()
-
-	return merged
+	fanIn := WithFanIn(func(item T) <-chan R {
+		return q.Add(item)
+	})
+	return fanIn(data...)
 }
 
 // Processes the next job in the queue.
@@ -205,7 +155,7 @@ func (q *Gocq[T, R]) Close() {
 		close(channel)
 	}
 
-	q.channelsStack = make([]chan *Job[T, R], q.concurrency)
+	q.channelsStack = make([]chan *Job[T, R], 0)
 }
 
 // Waits until all pending jobs in the queue are processed and then closes the queue.

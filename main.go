@@ -8,7 +8,7 @@ import (
 )
 
 func main() {
-	q := queue.New(10, func(data int) int {
+	q := queue.NewPQ(10, func(data int) int {
 		fmt.Printf("Started Worker %d\n", data)
 		for i := 0; i < 1e10; i++ {
 			// do nothing
@@ -39,7 +39,7 @@ func main() {
 	time.Sleep(time.Second * 5)
 
 	for i := 0; i < 30; i++ {
-		q.Add(i + 1)
+		q.Add(i+1, 1)
 	}
 	fmt.Println("All tasks have been added 2")
 }
