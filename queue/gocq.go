@@ -1,7 +1,6 @@
 package queue
 
 import (
-	"fmt"
 	"sync"
 )
 
@@ -54,7 +53,6 @@ func New[T, R comparable](concurrency uint, worker func(T) R) *Gocq[T, R] {
 	channelsStack := make([]chan *Job[T, R], concurrency)
 	wg, mx, jobQueue := new(sync.WaitGroup), new(sync.Mutex), NewQueue[*Job[T, R]]()
 
-	fmt.Println(jobQueue.Len())
 	queue := &Gocq[T, R]{concurrency, worker, channelsStack, 0, jobQueue, wg, mx}
 
 	return queue.Init()
@@ -68,16 +66,13 @@ func (q *Gocq[T, R]) Init() *Gocq[T, R] {
 
 		go func(channel chan *Job[T, R]) {
 			for job := range channel {
-				q.mx.Lock()
-				q.mx.Unlock()
-
 				output := q.worker(job.data)
 
-				q.mx.Lock()
 				job.response <- output // sends the output to the job consumer
 				close(job.response)
 				q.wg.Done()
 
+				q.mx.Lock()
 				// adding the free channel to stack
 				q.channelsStack = append(q.channelsStack, channel)
 				q.curProcessing--
@@ -189,15 +184,19 @@ func (q *Gocq[T, R]) WaitUntilFinished() {
 	q.wg.Wait()
 }
 
-// Closes the queue and resets all internal states.
-// O(n) where n is the number of channels
-func (q *Gocq[T, R]) Close() {
-	// reset all stores
+func (q *Gocq[T, R]) Purge() {
 	q.mx.Lock()
+	defer q.mx.Unlock()
+
 	pendingCount := q.PendingCount()
 	q.jobQueue.Init()
 	q.wg.Add(-pendingCount)
-	q.mx.Unlock()
+}
+
+// Closes the queue and resets all internal states.
+// O(n) where n is the number of channels
+func (q *Gocq[T, R]) Close() {
+	q.Purge()
 
 	// wait until all ongoing processes are done
 	q.wg.Wait()
