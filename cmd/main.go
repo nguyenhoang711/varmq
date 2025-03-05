@@ -6,7 +6,7 @@ import (
 	"runtime/trace"
 	"time"
 
-	"github.com/fahimfaisaal/gocq/queue"
+	"github.com/fahimfaisaal/gocq"
 )
 
 func main() {
@@ -25,7 +25,7 @@ func main() {
 
 	// Make sure trace is stopped before your program ends
 	defer trace.Stop()
-	q := queue.NewPQ(20, func(data int) int {
+	q := gocq.NewPQ(20, func(data int) int {
 		fmt.Printf("Started Worker %d\n", data)
 		for i := 0; i < 1e10; i++ {
 			// do nothing

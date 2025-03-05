@@ -2,23 +2,25 @@ package queue
 
 import (
 	"container/list"
+
+	types "github.com/fahimfaisaal/gocq/internal/queue/types"
 )
 
-// queue holds a linked list-based queue of generic items.
-type queue[T any] struct {
+// Queue holds a linked list-based queue of generic items.
+type Queue[T any] struct {
 	internal *list.List
 }
 
-// newQueue creates an empty queue using container/list.
-func newQueue[T any]() *queue[T] {
-	return &queue[T]{internal: new(list.List)}
+// newQueue creates an empty Queue using container/list.
+func NewQueue[T any]() *Queue[T] {
+	return &Queue[T]{internal: new(list.List)}
 }
 
-func (q *queue[T]) Init() {
+func (q *Queue[T]) Init() {
 	q.internal.Init()
 }
 
-func (q *queue[T]) Values() []T {
+func (q *Queue[T]) Values() []T {
 	values := make([]T, 0)
 
 	for e := q.internal.Front(); e != nil; e = e.Next() {
@@ -28,17 +30,17 @@ func (q *queue[T]) Values() []T {
 	return values
 }
 
-func (q *queue[T]) Len() int {
+func (q *Queue[T]) Len() int {
 	return q.internal.Len()
 }
 
 // Enqueue adds an item at the back of the list in O(1).
-func (q *queue[T]) Enqueue(item item[T]) {
+func (q *Queue[T]) Enqueue(item types.Item[T]) {
 	q.internal.PushBack(item.Value)
 }
 
 // Dequeue removes and returns the front item in O(1).
-func (q *queue[T]) Dequeue() (T, bool) {
+func (q *Queue[T]) Dequeue() (T, bool) {
 	front := q.internal.Front()
 	if front == nil {
 		// Return zero value + false if empty

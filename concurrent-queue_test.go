@@ -1,4 +1,4 @@
-package queue
+package gocq
 
 import (
 	"testing"
@@ -83,7 +83,7 @@ func TestQueue_Concurrency(t *testing.T) {
 	})
 	defer q.Close()
 
-	// Add more jobs than concurrency
+	// Add more Jobs than concurrency
 	for i := 0; i < 5; i++ {
 		q.Add(i)
 	}
@@ -91,9 +91,9 @@ func TestQueue_Concurrency(t *testing.T) {
 	// Wait a bit to let some processing happen
 	time.Sleep(150 * time.Millisecond)
 
-	// Check if only concurrency number of jobs are being processed
+	// Check if only concurrency number of Jobs are being processed
 	if current := q.CurrentProcessingCount(); current > concurrency {
-		t.Errorf("Processing more jobs than concurrency allows. Got %d, want <= %d", current, concurrency)
+		t.Errorf("Processing more Jobs than concurrency allows. Got %d, want <= %d", current, concurrency)
 	}
 }
 
