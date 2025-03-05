@@ -46,7 +46,7 @@ for result := range results {
 
 ```go
 // Create a priority queue with 4 concurrent workers
-pq := gocq.NewPQ(4, func(data int) int {
+pq := gocq.NewPriorityQueue(4, func(data int) int {
     return data * 2
 })
 defer pq.Close()
@@ -69,7 +69,7 @@ for result := range results {
 
 - `Init() *concurrentQueue[T, R]`
   - Initializes the queue by starting worker goroutines
-  - Called automatically by `New()` and `NewPQ()`
+  - Called automatically by `New()` and `NewPriorityQueue()`
   - Returns the initialized queue
   - Time complexity: O(n) where n is the concurrency level
 
@@ -92,7 +92,7 @@ for result := range results {
 
 ### Priority Queue
 
-- `NewPQ[T, R any](concurrency uint, worker func(T) R) *concurrentPriorityQueue[T, R]`
+- `NewPriorityQueue[T, R any](concurrency uint, worker func(T) R) *concurrentPriorityQueue[T, R]`
 
   - Creates a new concurrent priority queue
   - Generic types T (input) and R (output)
@@ -169,7 +169,7 @@ The queue initialization process:
 3. Sets up the job processing pipeline
 4. Initializes internal synchronization mechanisms
 
-Note: Users don't need to call `Init()` directly as it's automatically called by the constructor functions (`New()` and `NewPQ()`).
+Note: Users don't need to call `Init()` directly as it's automatically called by the constructor functions (`New()` and `NewPriorityQueue()`).
 
 ## License
 

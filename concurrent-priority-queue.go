@@ -11,7 +11,7 @@ type concurrentPriorityQueue[T, R any] struct {
 	*concurrentQueue[T, R]
 }
 
-func NewPQ[T, R any](concurrency uint, worker func(T) R) *concurrentPriorityQueue[T, R] {
+func NewPriorityQueue[T, R any](concurrency uint, worker func(T) R) *concurrentPriorityQueue[T, R] {
 	channelsStack := make([]chan *types.Job[T, R], 0)
 	wg, mx, jobQueue := new(sync.WaitGroup), new(sync.Mutex), queue.NewPriorityQueue[*types.Job[T, R]]()
 
