@@ -2,6 +2,8 @@ package main
 
 import (
 	"fmt"
+	"os"
+	"runtime/trace"
 	"time"
 
 	"github.com/fahimfaisaal/gocq/queue"
@@ -12,7 +14,18 @@ func main() {
 	defer func() {
 		fmt.Printf("Took %s\n", time.Since(start))
 	}()
-	q := queue.NewPQ(10, func(data int) int {
+	f, err := os.Create("trace.out")
+	if err != nil {
+		panic(err)
+	}
+	defer f.Close()
+	if err := trace.Start(f); err != nil {
+		panic(err)
+	}
+
+	// Make sure trace is stopped before your program ends
+	defer trace.Stop()
+	q := queue.NewPQ(20, func(data int) int {
 		fmt.Printf("Started Worker %d\n", data)
 		for i := 0; i < 1e10; i++ {
 			// do nothing
@@ -22,24 +35,16 @@ func main() {
 	})
 	defer q.WaitAndClose()
 
-	vals := make([]int, 100)
-	for i := 0; i < 100; i++ {
+	vals := make([]int, 50)
+	for i := 0; i < 50; i++ {
 		vals[i] = i + 1
 	}
 
 	q.AddAll(1, vals...)
 	fmt.Println("All tasks have been added")
 
-	time.Sleep(time.Second * 5)
-	q.Close()
-	fmt.Println("Closed the queue successfully")
-	q.Init()
-	fmt.Println("Re-initial queue")
-
-	time.Sleep(time.Second * 5)
-
-	for i := 0; i < 30; i++ {
-		q.Add(i+1, 1)
+	for i := 3000; i < 3030; i++ {
+		q.Add(i+1, 0)
 	}
 	fmt.Println("All tasks have been added 2")
 }

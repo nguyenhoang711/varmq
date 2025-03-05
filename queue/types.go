@@ -1,19 +1,19 @@
 package queue
 
-type Job[T, R any] struct {
+type job[T, R any] struct {
 	data     T
 	response chan R
 }
 
-// Item represents a single element stored in the priority queue.
-type Item[T any] struct {
+// item represents a single element stored in the priority queue.
+type item[T any] struct {
 	Value    T
 	Priority int
 }
 
-type IQueue[T any] interface {
+type iQueue[T any] interface {
 	Dequeue() (T, bool)
-	Enqueue(item Item[T])
+	Enqueue(item item[T])
 	Init()
 	Len() int
 	Values() []T
