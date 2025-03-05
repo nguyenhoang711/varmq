@@ -5,17 +5,27 @@ import (
 )
 
 // Queue holds a linked list-based queue of generic items.
-type Queue[T comparable] struct {
+type Queue[T any] struct {
 	internal *list.List
 }
 
 // newQueue creates an empty Queue using container/list.
-func NewQueue[T comparable]() *Queue[T] {
+func NewQueue[T any]() *Queue[T] {
 	return &Queue[T]{internal: new(list.List)}
 }
 
 func (q *Queue[T]) Init() {
 	q.internal.Init()
+}
+
+func (q *Queue[T]) Values() []T {
+	values := make([]T, 0)
+
+	for e := q.internal.Front(); e != nil; e = e.Next() {
+		values = append(values, e.Value.(T))
+	}
+
+	return values
 }
 
 func (q *Queue[T]) Len() int {
@@ -40,16 +50,4 @@ func (q *Queue[T]) Dequeue() (T, bool) {
 	val := front.Value.(T)
 	q.internal.Remove(front)
 	return val, true
-}
-
-// Remove finds the first occurrence of 'value' in the queue and removes it.
-// Returns true if an item was removed, false if the item wasn't in the queue.
-func (q *Queue[T]) Remove(value T) bool {
-	for e := q.internal.Front(); e != nil; e = e.Next() {
-		if e.Value.(T) == value {
-			q.internal.Remove(e)
-			return true
-		}
-	}
-	return false
 }

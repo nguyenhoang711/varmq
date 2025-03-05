@@ -5,7 +5,7 @@ import (
 )
 
 // priorityQueue implements heap.Interface for a slice of *Item[T].
-type priorityQueue[T comparable] struct {
+type priorityQueue[T any] struct {
 	items []*Item[T]
 }
 
@@ -39,12 +39,12 @@ func (pq *priorityQueue[T]) Pop() any {
 }
 
 // PriorityQueue is the user-facing wrapper around priorityQueue[T].
-type PriorityQueue[T comparable] struct {
+type PriorityQueue[T any] struct {
 	internal *priorityQueue[T]
 }
 
 // newPriorityQueue initializes an empty priority queue.
-func newPriorityQueue[T comparable]() *PriorityQueue[T] {
+func newPriorityQueue[T any]() *PriorityQueue[T] {
 	pq := &priorityQueue[T]{
 		items: make([]*Item[T], 0),
 	}
@@ -60,6 +60,14 @@ func (q *PriorityQueue[T]) Len() int {
 func (q *PriorityQueue[T]) Init() {
 	q.internal.items = make([]*Item[T], 0)
 	heap.Init(q.internal)
+}
+
+func (q *PriorityQueue[T]) Values() []T {
+	values := make([]T, 0)
+	for _, item := range q.internal.items {
+		values = append(values, item.Value)
+	}
+	return values
 }
 
 // Enqueue pushes a new item with the given priority.

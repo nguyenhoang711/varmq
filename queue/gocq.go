@@ -4,7 +4,7 @@ import (
 	"sync"
 )
 
-type Gocq[T, R comparable] struct {
+type Gocq[T, R any] struct {
 	concurrency   uint
 	worker        func(T) R
 	channelsStack []chan *Job[T, R]
@@ -16,7 +16,7 @@ type Gocq[T, R comparable] struct {
 
 // Creates a new Gocq with the specified concurrency and worker function.
 // O(1)
-func New[T, R comparable](concurrency uint, worker func(T) R) *Gocq[T, R] {
+func New[T, R any](concurrency uint, worker func(T) R) *Gocq[T, R] {
 	channelsStack := make([]chan *Job[T, R], 0)
 	wg, mx, jobQueue := new(sync.WaitGroup), new(sync.Mutex), NewQueue[*Job[T, R]]()
 
@@ -138,9 +138,14 @@ func (q *Gocq[T, R]) Purge() {
 	q.mx.Lock()
 	defer q.mx.Unlock()
 
-	pendingCount := q.PendingCount()
+	prevValues := q.jobQueue.Values()
 	q.jobQueue.Init()
-	q.wg.Add(-pendingCount)
+	q.wg.Add(-len(prevValues))
+
+	// close all pending channels to avoid routine leaks
+	for _, job := range prevValues {
+		close(job.response)
+	}
 }
 
 // Closes the queue and resets all internal states.

@@ -2,11 +2,11 @@ package queue
 
 import "sync"
 
-type Gopq[T, R comparable] struct {
+type Gopq[T, R any] struct {
 	*Gocq[T, R]
 }
 
-func NewPQ[T, R comparable](concurrency uint, worker func(T) R) *Gopq[T, R] {
+func NewPQ[T, R any](concurrency uint, worker func(T) R) *Gopq[T, R] {
 	channelsStack := make([]chan *Job[T, R], 0)
 	wg, mx, jobQueue := new(sync.WaitGroup), new(sync.Mutex), newPriorityQueue[*Job[T, R]]()
 
