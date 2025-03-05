@@ -35,9 +35,9 @@ func (q *Gopq[T, R]) Add(data T, priority int) <-chan R {
 	return job.response
 }
 
-func (q *Gopq[T, R]) AddAll(data ...T) <-chan R {
+func (q *Gopq[T, R]) AddAll(priority int, data ...T) <-chan R {
 	fanIn := WithFanIn(func(item T) <-chan R {
-		return q.Add(item, 0)
+		return q.Add(item, priority)
 	})
 	return fanIn(data...)
 }

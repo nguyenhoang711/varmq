@@ -8,6 +8,10 @@ import (
 )
 
 func main() {
+	start := time.Now()
+	defer func() {
+		fmt.Printf("Took %s\n", time.Since(start))
+	}()
 	q := queue.NewPQ(10, func(data int) int {
 		fmt.Printf("Started Worker %d\n", data)
 		for i := 0; i < 1e10; i++ {
@@ -17,17 +21,13 @@ func main() {
 		return data
 	})
 	defer q.WaitAndClose()
-	start := time.Now()
-	defer func() {
-		fmt.Printf("Took %s\n", time.Since(start))
-	}()
 
 	vals := make([]int, 100)
 	for i := 0; i < 100; i++ {
 		vals[i] = i + 1
 	}
 
-	q.AddAll(vals...)
+	q.AddAll(1, vals...)
 	fmt.Println("All tasks have been added")
 
 	time.Sleep(time.Second * 5)
