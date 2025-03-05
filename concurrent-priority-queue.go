@@ -2,6 +2,7 @@ package gocq
 
 import (
 	"sync"
+	"sync/atomic"
 
 	"github.com/fahimfaisaal/gocq/internal/queue"
 	types "github.com/fahimfaisaal/gocq/internal/queue/types"
@@ -15,7 +16,16 @@ func NewPriorityQueue[T, R any](concurrency uint, worker func(T) R) *concurrentP
 	channelsStack := make([]chan *types.Job[T, R], 0)
 	wg, mx, jobQueue := new(sync.WaitGroup), new(sync.Mutex), queue.NewPriorityQueue[*types.Job[T, R]]()
 
-	queue := &concurrentQueue[T, R]{concurrency, worker, channelsStack, 0, jobQueue, wg, mx}
+	queue := &concurrentQueue[T, R]{
+		concurrency:   concurrency,
+		worker:        worker,
+		channelsStack: channelsStack,
+		curProcessing: 0,
+		jobQueue:      jobQueue,
+		wg:            wg,
+		mx:            mx,
+		isPaused:      atomic.Bool{},
+	}
 
 	return &concurrentPriorityQueue[T, R]{concurrentQueue: queue.Init()}
 }
@@ -33,7 +43,7 @@ func (q *concurrentPriorityQueue[T, R]) Add(data T, priority int) <-chan R {
 	q.wg.Add(1)
 
 	// process next Job only when the current processing Job count is less than the concurrency
-	if q.curProcessing < q.concurrency {
+	if q.shouldProcessNextJob("add") {
 		q.processNextJob()
 	}
 

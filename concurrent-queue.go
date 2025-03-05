@@ -2,6 +2,7 @@ package gocq
 
 import (
 	"sync"
+	"sync/atomic"
 
 	"github.com/fahimfaisaal/gocq/internal/queue"
 	types "github.com/fahimfaisaal/gocq/internal/queue/types"
@@ -15,6 +16,7 @@ type concurrentQueue[T, R any] struct {
 	jobQueue      types.IQueue[*types.Job[T, R]]
 	wg            *sync.WaitGroup
 	mx            *sync.Mutex
+	isPaused      atomic.Bool // Add this field
 }
 
 // Creates a new concurrentQueue with the specified concurrency and worker function.
@@ -23,7 +25,16 @@ func New[T, R any](concurrency uint, worker func(T) R) *concurrentQueue[T, R] {
 	channelsStack := make([]chan *types.Job[T, R], 0)
 	wg, mx, jobQueue := new(sync.WaitGroup), new(sync.Mutex), queue.NewQueue[*types.Job[T, R]]()
 
-	queue := &concurrentQueue[T, R]{concurrency, worker, channelsStack, 0, jobQueue, wg, mx}
+	queue := &concurrentQueue[T, R]{
+		concurrency:   concurrency,
+		worker:        worker,
+		channelsStack: channelsStack,
+		curProcessing: 0,
+		jobQueue:      jobQueue,
+		wg:            wg,
+		mx:            mx,
+		isPaused:      atomic.Bool{},
+	}
 
 	return queue.Init()
 }
@@ -78,10 +89,32 @@ func (q *concurrentQueue[T, R]) PendingCount() int {
 	return q.jobQueue.Len()
 }
 
+func (q *concurrentQueue[T, R]) IsPaused() bool {
+	return q.isPaused.Load()
+}
+
 // Returns the number of Jobs currently being processed.
 // O(1)
 func (q *concurrentQueue[T, R]) CurrentProcessingCount() uint {
 	return q.curProcessing
+}
+
+func (q *concurrentQueue[T, R]) Pause() {
+	q.isPaused.Store(true)
+}
+
+// Resume continues processing jobs
+func (q *concurrentQueue[T, R]) Resume() {
+	q.isPaused.Store(false)
+
+	// Process pending jobs if any
+	q.mx.Lock()
+	defer q.mx.Unlock()
+
+	// Process jobs up to concurrency limit
+	for q.shouldProcessNextJob("resume") {
+		q.processNextJob()
+	}
 }
 
 // Adds a new Job to the queue and returns a channel to receive the response and a cancel function.
@@ -99,11 +132,24 @@ func (q *concurrentQueue[T, R]) Add(data T) <-chan R {
 	q.wg.Add(1)
 
 	// process next Job only when the current processing Job count is less than the concurrency
-	if q.curProcessing < q.concurrency {
+	if q.shouldProcessNextJob("add") {
 		q.processNextJob()
 	}
 
 	return job.Response
+}
+
+func (q *concurrentQueue[T, R]) shouldProcessNextJob(from string) bool {
+	switch from {
+	case "add":
+		return !q.isPaused.Load() && q.curProcessing < q.concurrency
+	case "resume":
+		return q.curProcessing < q.concurrency && q.jobQueue.Len() > 0
+	case "next":
+		return !q.isPaused.Load() && q.jobQueue.Len() != 0
+	default:
+		return false
+	}
 }
 
 // Adds multiple Jobs to the queue and returns a channel to receive all responses.
