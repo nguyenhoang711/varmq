@@ -13,7 +13,7 @@ type concurrentPriorityQueue[T, R any] struct {
 }
 
 func NewPriorityQueue[T, R any](concurrency uint, worker func(T) R) *concurrentPriorityQueue[T, R] {
-	channelsStack := make([]chan *types.Job[T, R], 0)
+	channelsStack := make([]chan *types.Job[T, R], concurrency)
 	wg, mx, jobQueue := new(sync.WaitGroup), new(sync.Mutex), queue.NewPriorityQueue[*types.Job[T, R]]()
 
 	queue := &concurrentQueue[T, R]{

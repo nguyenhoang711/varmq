@@ -16,13 +16,13 @@ type concurrentQueue[T, R any] struct {
 	jobQueue      types.IQueue[*types.Job[T, R]]
 	wg            *sync.WaitGroup
 	mx            *sync.Mutex
-	isPaused      atomic.Bool // Add this field
+	isPaused      atomic.Bool
 }
 
 // Creates a new concurrentQueue with the specified concurrency and worker function.
 // O(1)
 func New[T, R any](concurrency uint, worker func(T) R) *concurrentQueue[T, R] {
-	channelsStack := make([]chan *types.Job[T, R], 0)
+	channelsStack := make([]chan *types.Job[T, R], concurrency)
 	wg, mx, jobQueue := new(sync.WaitGroup), new(sync.Mutex), queue.NewQueue[*types.Job[T, R]]()
 
 	queue := &concurrentQueue[T, R]{
@@ -43,7 +43,7 @@ func New[T, R any](concurrency uint, worker func(T) R) *concurrentQueue[T, R] {
 // O(n) where n is the concurrency
 func (q *concurrentQueue[T, R]) Init() *concurrentQueue[T, R] {
 	for i := range q.concurrency {
-		q.channelsStack = append(q.channelsStack, make(chan *types.Job[T, R]))
+		q.channelsStack[i] = make(chan *types.Job[T, R])
 
 		go func(channel chan *types.Job[T, R]) {
 			for job := range channel {
@@ -59,7 +59,7 @@ func (q *concurrentQueue[T, R]) Init() *concurrentQueue[T, R] {
 				q.curProcessing--
 
 				// process only if the queue is not empty
-				if q.jobQueue.Len() != 0 {
+				if q.shouldProcessNextJob("next") {
 					q.processNextJob()
 				}
 				q.mx.Unlock()
@@ -207,10 +207,14 @@ func (q *concurrentQueue[T, R]) Close() {
 	q.wg.Wait()
 
 	for _, channel := range q.channelsStack {
+		if channel == nil {
+			continue
+		}
+
 		close(channel)
 	}
 
-	q.channelsStack = make([]chan *types.Job[T, R], 0)
+	q.channelsStack = make([]chan *types.Job[T, R], q.concurrency, q.concurrency)
 }
 
 // Waits until all pending Jobs in the queue are processed and then closes the queue.
