@@ -42,7 +42,7 @@ for result := range results {
 }
 ```
 
-### Priority Queue
+### Priority Concurrent Queue
 
 ```go
 // Create a priority queue with 4 concurrent workers
