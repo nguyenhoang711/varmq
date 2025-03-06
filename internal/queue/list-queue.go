@@ -16,10 +16,12 @@ func NewQueue[T any]() *Queue[T] {
 	return &Queue[T]{internal: new(list.List)}
 }
 
+// Init initializes the queue.
 func (q *Queue[T]) Init() {
 	q.internal.Init()
 }
 
+// Values returns a slice of all values in the queue.
 func (q *Queue[T]) Values() []T {
 	values := make([]T, 0)
 
@@ -30,16 +32,19 @@ func (q *Queue[T]) Values() []T {
 	return values
 }
 
+// Len returns the number of items in the queue.
 func (q *Queue[T]) Len() int {
 	return q.internal.Len()
 }
 
-// Enqueue adds an item at the back of the list in O(1).
+// Enqueue adds an item at the back of the list.
+// Time complexity: O(1)
 func (q *Queue[T]) Enqueue(item types.Item[T]) {
 	q.internal.PushBack(item.Value)
 }
 
-// Dequeue removes and returns the front item in O(1).
+// Dequeue removes and returns the front item.
+// Time complexity: O(1)
 func (q *Queue[T]) Dequeue() (T, bool) {
 	front := q.internal.Front()
 	if front == nil {

@@ -27,11 +27,13 @@ func (pq *heapQueue[T]) Swap(i, j int) {
 }
 
 // Push is called by heap.Push to add a new element to the end.
+// Time complexity: O(1)
 func (pq *heapQueue[T]) Push(x any) {
 	pq.items = append(pq.items, x.(*types.Item[T]))
 }
 
 // Pop is called by heap.Pop to remove the last element from the slice.
+// Time complexity: O(1)
 func (pq *heapQueue[T]) Pop() any {
 	n := len(pq.items)
 	item := pq.items[n-1]

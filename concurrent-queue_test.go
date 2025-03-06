@@ -8,7 +8,7 @@ import (
 func TestConcurrentQueue(t *testing.T) {
 	t.Run("Add", func(t *testing.T) {
 		t.Parallel()
-		q := New(2, func(data int) int {
+		q := NewQueue(2, func(data int) int {
 			time.Sleep(100 * time.Millisecond)
 			return data * 2
 		})
@@ -23,7 +23,7 @@ func TestConcurrentQueue(t *testing.T) {
 	})
 
 	t.Run("AddAll", func(t *testing.T) {
-		q := New(2, func(data int) int {
+		q := NewQueue(2, func(data int) int {
 			time.Sleep(100 * time.Millisecond)
 			return data * 2
 		})
@@ -53,7 +53,7 @@ func TestConcurrentQueue(t *testing.T) {
 	})
 
 	t.Run("WaitUntilFinished", func(t *testing.T) {
-		q := New(2, func(data int) int {
+		q := NewQueue(2, func(data int) int {
 			time.Sleep(100 * time.Millisecond)
 			return data * 2
 		})
@@ -77,7 +77,7 @@ func TestConcurrentQueue(t *testing.T) {
 		t.Parallel()
 		concurrency := uint(2)
 		processed := 0
-		q := New(concurrency, func(data int) int {
+		q := NewQueue(concurrency, func(data int) int {
 			time.Sleep(100 * time.Millisecond)
 			processed++
 			return data * 2
@@ -99,7 +99,7 @@ func TestConcurrentQueue(t *testing.T) {
 	})
 
 	t.Run("WaitAndClose", func(t *testing.T) {
-		q := New(2, func(data int) int {
+		q := NewQueue(2, func(data int) int {
 			time.Sleep(100 * time.Millisecond)
 			return data * 2
 		})
@@ -124,7 +124,7 @@ func TestConcurrentQueue(t *testing.T) {
 			return data * 2
 		}
 
-		q := New(2, worker)
+		q := NewQueue(2, worker)
 
 		resp1 := q.Add(1)
 		resp2 := q.Add(2)
@@ -159,7 +159,7 @@ func TestConcurrentQueue(t *testing.T) {
 }
 
 func BenchmarkQueue_Add(b *testing.B) {
-	q := New(20, func(data int) int {
+	q := NewQueue(20, func(data int) int {
 		return data * 2
 	})
 	defer q.Close()
@@ -172,7 +172,7 @@ func BenchmarkQueue_Add(b *testing.B) {
 }
 
 func BenchmarkQueue_AddAll(b *testing.B) {
-	q := New(10, func(data int) int {
+	q := NewQueue(10, func(data int) int {
 		return data * 2
 	})
 	defer q.Close()

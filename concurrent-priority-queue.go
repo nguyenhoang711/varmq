@@ -12,6 +12,7 @@ type concurrentPriorityQueue[T, R any] struct {
 	*concurrentQueue[T, R]
 }
 
+// NewPriorityQueue creates a new concurrentPriorityQueue with the specified concurrency and worker function.
 func NewPriorityQueue[T, R any](concurrency uint, worker func(T) R) *concurrentPriorityQueue[T, R] {
 	channelsStack := make([]chan *types.Job[T, R], concurrency)
 	wg, mx, jobQueue := new(sync.WaitGroup), new(sync.Mutex), queue.NewPriorityQueue[*types.Job[T, R]]()
@@ -30,11 +31,14 @@ func NewPriorityQueue[T, R any](concurrency uint, worker func(T) R) *concurrentP
 	return &concurrentPriorityQueue[T, R]{concurrentQueue: queue.Init()}
 }
 
+// Pause pauses the processing of jobs.
 func (q *concurrentPriorityQueue[T, R]) Pause() *concurrentPriorityQueue[T, R] {
 	q.isPaused.Store(true)
 	return q
 }
 
+// Add adds a new Job with the given priority to the queue and returns a channel to receive the response.
+// Time complexity: O(log n)
 func (q *concurrentPriorityQueue[T, R]) Add(data T, priority int) <-chan R {
 	q.mx.Lock()
 	defer q.mx.Unlock()
@@ -55,6 +59,8 @@ func (q *concurrentPriorityQueue[T, R]) Add(data T, priority int) <-chan R {
 	return job.Response
 }
 
+// AddAll adds multiple Jobs with the given priority to the queue and returns a channel to receive all responses.
+// Time complexity: O(n log n) where n is the number of Jobs added
 func (q *concurrentPriorityQueue[T, R]) AddAll(priority int, data ...T) <-chan R {
 	fanIn := withFanIn(func(item T) <-chan R {
 		return q.Add(item, priority)
