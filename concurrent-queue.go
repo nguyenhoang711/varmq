@@ -43,6 +43,12 @@ func New[T, R any](concurrency uint, worker func(T) R) *concurrentQueue[T, R] {
 // O(n) where n is the concurrency
 func (q *concurrentQueue[T, R]) Init() *concurrentQueue[T, R] {
 	for i := range q.concurrency {
+		// if channel is not nil, close it
+		// reason: to avoid routine leaks
+		if channel := q.channelsStack[i]; channel != nil {
+			close(channel)
+		}
+
 		q.channelsStack[i] = make(chan *types.Job[T, R])
 
 		go func(channel chan *types.Job[T, R]) {
@@ -214,7 +220,7 @@ func (q *concurrentQueue[T, R]) Close() {
 		close(channel)
 	}
 
-	q.channelsStack = make([]chan *types.Job[T, R], q.concurrency, q.concurrency)
+	q.channelsStack = make([]chan *types.Job[T, R], q.concurrency)
 }
 
 // Waits until all pending Jobs in the queue are processed and then closes the queue.
