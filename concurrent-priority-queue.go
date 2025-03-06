@@ -30,6 +30,11 @@ func NewPriorityQueue[T, R any](concurrency uint, worker func(T) R) *concurrentP
 	return &concurrentPriorityQueue[T, R]{concurrentQueue: queue.Init()}
 }
 
+func (q *concurrentPriorityQueue[T, R]) Pause() *concurrentPriorityQueue[T, R] {
+	q.isPaused.Store(true)
+	return q
+}
+
 func (q *concurrentPriorityQueue[T, R]) Add(data T, priority int) <-chan R {
 	q.mx.Lock()
 	defer q.mx.Unlock()
@@ -55,28 +60,4 @@ func (q *concurrentPriorityQueue[T, R]) AddAll(priority int, data ...T) <-chan R
 		return q.Add(item, priority)
 	})
 	return fanIn(data...)
-}
-
-func withFanIn[T, R any](fn func(T) <-chan R) func(...T) <-chan R {
-	return func(data ...T) <-chan R {
-		wg := new(sync.WaitGroup)
-		merged := make(chan R)
-
-		wg.Add(len(data))
-		for _, item := range data {
-			go func(c <-chan R) {
-				defer wg.Done()
-				for val := range c {
-					merged <- val
-				}
-			}(fn(item))
-		}
-
-		go func() {
-			wg.Wait()
-			close(merged)
-		}()
-
-		return merged
-	}
 }

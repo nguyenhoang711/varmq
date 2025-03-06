@@ -105,8 +105,9 @@ func (q *concurrentQueue[T, R]) CurrentProcessingCount() uint {
 	return q.curProcessing
 }
 
-func (q *concurrentQueue[T, R]) Pause() {
+func (q *concurrentQueue[T, R]) Pause() *concurrentQueue[T, R] {
 	q.isPaused.Store(true)
+	return q
 }
 
 // Resume continues processing jobs
