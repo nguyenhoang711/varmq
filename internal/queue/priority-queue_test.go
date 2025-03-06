@@ -10,20 +10,24 @@ func TestPriorityQueue(t *testing.T) {
 	t.Run("Basic Operations", func(t *testing.T) {
 		pq := NewPriorityQueue[int]()
 
-		if pq.Len() != 0 {
-			t.Errorf("expected length 0, got %d", pq.Len())
+		if len := pq.Len(); len != 0 {
+			t.Errorf("expected length 0, got %d", len)
 		}
 
 		pq.Enqueue(types.Item[int]{Value: 1, Priority: 2})
 		pq.Enqueue(types.Item[int]{Value: 2, Priority: 1})
 
-		if pq.Len() != 2 {
-			t.Errorf("expected length 2, got %d", pq.Len())
+		if len := pq.Len(); len != 2 {
+			t.Errorf("expected length 2, got %d", len)
 		}
 
 		val, ok := pq.Dequeue()
 		if !ok || val != 2 {
 			t.Errorf("expected value 2, got %d", val)
+		}
+
+		if len := pq.Len(); len != 1 {
+			t.Errorf("expected length 1, got %d", len)
 		}
 
 		val, ok = pq.Dequeue()
