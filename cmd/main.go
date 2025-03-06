@@ -25,6 +25,7 @@ func main() {
 
 	// Make sure trace is stopped before your program ends
 	defer trace.Stop()
+
 	q := gocq.NewPriorityQueue(20, func(data int) int {
 		fmt.Printf("Started Worker %d\n", data)
 		for i := 0; i < 1e10; i++ {
@@ -35,12 +36,12 @@ func main() {
 	})
 	defer q.WaitAndClose()
 
-	vals := make([]int, 50)
+	items := make([]gocq.PQItem[int], 50)
 	for i := 0; i < 50; i++ {
-		vals[i] = i + 1
+		items[i] = gocq.PQItem[int]{Value: i + 1, Priority: i % 10}
 	}
 
-	q.AddAll(1, vals...)
+	q.AddAll(items)
 	fmt.Println("All tasks have been added")
 
 	for i := 3000; i < 3030; i++ {

@@ -50,8 +50,13 @@ func TestConcurrentPriorityQueue(t *testing.T) {
 
 		q := NewPriorityQueue(2, worker)
 
-		data := []int{1, 2, 3, 4, 5}
-		resultChan := q.AddAll(1, data...)
+		resultChan := q.AddAll([]PQItem[int]{
+			{Value: 1, Priority: 2},
+			{Value: 2, Priority: 1},
+			{Value: 3, Priority: 0},
+			{Value: 4, Priority: 2},
+			{Value: 5, Priority: 1},
+		})
 
 		results := make([]int, 0)
 		for result := range resultChan {

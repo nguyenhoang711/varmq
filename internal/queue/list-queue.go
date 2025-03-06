@@ -39,7 +39,7 @@ func (q *Queue[T]) Len() int {
 
 // Enqueue adds an item at the back of the list.
 // Time complexity: O(1)
-func (q *Queue[T]) Enqueue(item types.Item[T]) {
+func (q *Queue[T]) Enqueue(item types.EnqItem[T]) {
 	q.internal.PushBack(item.Value)
 }
 

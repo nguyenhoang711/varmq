@@ -14,9 +14,9 @@ func TestPriorityQueue(t *testing.T) {
 			t.Errorf("expected length 0, got %d", len)
 		}
 
-		pq.Enqueue(types.Item[int]{Value: 1, Priority: 2})
-		pq.Enqueue(types.Item[int]{Value: 2, Priority: 1})
-		pq.Enqueue(types.Item[int]{Value: 3, Priority: 1})
+		pq.Enqueue(types.EnqItem[int]{Value: 1, Priority: 2})
+		pq.Enqueue(types.EnqItem[int]{Value: 2, Priority: 1})
+		pq.Enqueue(types.EnqItem[int]{Value: 3, Priority: 1})
 
 		if len := pq.Len(); len != 3 {
 			t.Errorf("expected length 2, got %d", len)
@@ -57,8 +57,8 @@ func TestPriorityQueue(t *testing.T) {
 
 	t.Run("Values Method", func(t *testing.T) {
 		pq := NewPriorityQueue[int]()
-		pq.Enqueue(types.Item[int]{Value: 1, Priority: 2})
-		pq.Enqueue(types.Item[int]{Value: 2, Priority: 1})
+		pq.Enqueue(types.EnqItem[int]{Value: 1, Priority: 2})
+		pq.Enqueue(types.EnqItem[int]{Value: 2, Priority: 1})
 
 		values := pq.Values()
 		expected := []int{2, 1}

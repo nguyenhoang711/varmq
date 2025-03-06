@@ -8,6 +8,11 @@ import (
 	types "github.com/fahimfaisaal/gocq/internal/queue/types"
 )
 
+type PQItem[T any] struct {
+	Value    T
+	Priority int
+}
+
 type concurrentQueue[T, R any] struct {
 	concurrency   uint
 	worker        func(T) R
@@ -137,7 +142,7 @@ func (q *concurrentQueue[T, R]) Add(data T) <-chan R {
 		Response: make(chan R, 1),
 	}
 
-	q.jobQueue.Enqueue(types.Item[*types.Job[T, R]]{Value: job})
+	q.jobQueue.Enqueue(types.EnqItem[*types.Job[T, R]]{Value: job})
 	q.wg.Add(1)
 
 	// process next Job only when the current processing Job count is less than the concurrency
@@ -165,10 +170,25 @@ func (q *concurrentQueue[T, R]) shouldProcessNextJob(state string) bool {
 // Adds multiple Jobs to the queue and returns a channel to receive all responses.
 // Time complexity: O(n) where n is the number of Jobs added
 func (q *concurrentQueue[T, R]) AddAll(data ...T) <-chan R {
-	fanIn := withFanIn(func(item T) <-chan R {
-		return q.Add(item)
-	})
-	return fanIn(data...)
+	wg := new(sync.WaitGroup)
+	merged := make(chan R, len(data))
+
+	wg.Add(len(data))
+	for _, item := range data {
+		go func(c <-chan R) {
+			defer wg.Done()
+			for val := range c {
+				merged <- val
+			}
+		}(q.Add(item))
+	}
+
+	go func() {
+		wg.Wait()
+		close(merged)
+	}()
+
+	return merged
 }
 
 // Processes the next Job in the queue.

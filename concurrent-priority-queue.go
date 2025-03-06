@@ -48,7 +48,7 @@ func (q *concurrentPriorityQueue[T, R]) Add(data T, priority int) <-chan R {
 		Response: make(chan R, 1),
 	}
 
-	q.jobQueue.Enqueue(types.Item[*types.Job[T, R]]{Value: job, Priority: priority})
+	q.jobQueue.Enqueue(types.EnqItem[*types.Job[T, R]]{Value: job, Priority: priority})
 	q.wg.Add(1)
 
 	// process next Job only when the current processing Job count is less than the concurrency
@@ -61,9 +61,24 @@ func (q *concurrentPriorityQueue[T, R]) Add(data T, priority int) <-chan R {
 
 // AddAll adds multiple Jobs with the given priority to the queue and returns a channel to receive all responses.
 // Time complexity: O(n log n) where n is the number of Jobs added
-func (q *concurrentPriorityQueue[T, R]) AddAll(priority int, data ...T) <-chan R {
-	fanIn := withFanIn(func(item T) <-chan R {
-		return q.Add(item, priority)
-	})
-	return fanIn(data...)
+func (q *concurrentPriorityQueue[T, R]) AddAll(items []PQItem[T]) <-chan R {
+	wg := new(sync.WaitGroup)
+	merged := make(chan R, len(items))
+
+	wg.Add(len(items))
+	for _, item := range items {
+		go func(c <-chan R) {
+			defer wg.Done()
+			for val := range c {
+				merged <- val
+			}
+		}(q.Add(item.Value, item.Priority))
+	}
+
+	go func() {
+		wg.Wait()
+		close(merged)
+	}()
+
+	return merged
 }

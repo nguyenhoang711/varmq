@@ -1,6 +1,6 @@
 package types
 
-type Item[T any] struct {
+type EnqItem[T any] struct {
 	Value    T
 	Priority int
 	Index    int
