@@ -78,3 +78,37 @@ func TestConcurrentPriorityQueue(t *testing.T) {
 		}
 	})
 }
+
+func BenchmarkPriorityQueue_Add(b *testing.B) {
+	q := NewPriorityQueue(20, func(data int) int {
+		return data * 2
+	})
+	defer q.Close()
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		out := q.Add(i, i%10)
+		<-out
+	}
+}
+
+func BenchmarkPriorityQueue_AddAll(b *testing.B) {
+	q := NewPriorityQueue(10, func(data int) int {
+		return data * 2
+	})
+	defer q.Close()
+
+	data := make([]PQItem[int], 1000)
+	for i := range data {
+		data[i] = PQItem[int]{Value: i, Priority: i % 10}
+	}
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		out := q.AddAll(data)
+
+		for range out {
+			// drain the channel
+		}
+	}
+}

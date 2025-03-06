@@ -70,7 +70,7 @@ func (q *concurrentQueue[T, R]) Init() *concurrentQueue[T, R] {
 				q.curProcessing--
 
 				// process only if the queue is not empty
-				if q.shouldProcessNextJob("next") {
+				if q.shouldProcessNextJob("worker") {
 					q.processNextJob()
 				}
 				q.mx.Unlock()
@@ -92,6 +92,35 @@ func (q *concurrentQueue[T, R]) pickNextChannel() chan<- *types.Job[T, R] {
 	channel := q.channelsStack[l-1]
 	q.channelsStack = q.channelsStack[:l-1]
 	return channel
+}
+
+// Determines if the next job should be processed based on the current state.
+func (q *concurrentQueue[T, R]) shouldProcessNextJob(state string) bool {
+	switch state {
+	case "add":
+		return !q.isPaused.Load() && q.curProcessing < q.concurrency
+	case "resume":
+		return q.curProcessing < q.concurrency && q.jobQueue.Len() > 0
+	case "worker":
+		return !q.isPaused.Load() && q.jobQueue.Len() != 0
+	default:
+		return false
+	}
+}
+
+// Processes the next Job in the queue.
+func (q *concurrentQueue[T, R]) processNextJob() {
+	value, has := q.jobQueue.Dequeue()
+
+	if !has {
+		return
+	}
+
+	q.curProcessing++
+
+	go func(data *types.Job[T, R]) {
+		q.pickNextChannel() <- data
+	}(value)
 }
 
 // Returns the number of Jobs pending in the queue.
@@ -153,20 +182,6 @@ func (q *concurrentQueue[T, R]) Add(data T) <-chan R {
 	return job.Response
 }
 
-// Determines if the next job should be processed based on the current state.
-func (q *concurrentQueue[T, R]) shouldProcessNextJob(state string) bool {
-	switch state {
-	case "add":
-		return !q.isPaused.Load() && q.curProcessing < q.concurrency
-	case "resume":
-		return q.curProcessing < q.concurrency && q.jobQueue.Len() > 0
-	case "next":
-		return !q.isPaused.Load() && q.jobQueue.Len() != 0
-	default:
-		return false
-	}
-}
-
 // Adds multiple Jobs to the queue and returns a channel to receive all responses.
 // Time complexity: O(n) where n is the number of Jobs added
 func (q *concurrentQueue[T, R]) AddAll(data ...T) <-chan R {
@@ -189,22 +204,6 @@ func (q *concurrentQueue[T, R]) AddAll(data ...T) <-chan R {
 	}()
 
 	return merged
-}
-
-// Processes the next Job in the queue.
-// Time complexity: O(1)
-func (q *concurrentQueue[T, R]) processNextJob() {
-	value, has := q.jobQueue.Dequeue()
-
-	if !has {
-		return
-	}
-
-	q.curProcessing++
-
-	go func(data *types.Job[T, R]) {
-		q.pickNextChannel() <- data
-	}(value)
 }
 
 // Waits until all pending Jobs in the queue are processed.
