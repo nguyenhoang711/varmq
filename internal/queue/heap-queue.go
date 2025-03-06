@@ -14,6 +14,10 @@ func (pq *heapQueue[T]) Len() int {
 
 // Less: smaller Priority = higher priority (pops first).
 func (pq *heapQueue[T]) Less(i, j int) bool {
+	if pq.items[i].Priority == pq.items[j].Priority {
+		// Tie-breaker: lower insertion index => higher priority
+		return pq.items[i].Index < pq.items[j].Index
+	}
 	return pq.items[i].Priority < pq.items[j].Priority
 }
 

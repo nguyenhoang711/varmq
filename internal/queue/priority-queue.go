@@ -8,7 +8,8 @@ import (
 
 // PriorityQueue is the user-facing wrapper around heapQueue[T].
 type PriorityQueue[T any] struct {
-	internal *heapQueue[T]
+	internal       *heapQueue[T]
+	insertionCount int
 }
 
 // newPriorityQueue initializes an empty priority queue.
@@ -40,6 +41,8 @@ func (q *PriorityQueue[T]) Values() []T {
 
 // Enqueue pushes a new item with the given priority.
 func (q *PriorityQueue[T]) Enqueue(t types.Item[T]) {
+	t.Index = q.insertionCount
+	q.insertionCount++
 	heap.Push(q.internal, &t) // O(log n)
 }
 
