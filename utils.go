@@ -5,7 +5,7 @@ import "sync"
 func withFanIn[T, R any](fn func(T) <-chan R) func(...T) <-chan R {
 	return func(data ...T) <-chan R {
 		wg := new(sync.WaitGroup)
-		merged := make(chan R)
+		merged := make(chan R, len(data))
 
 		wg.Add(len(data))
 		for _, item := range data {
