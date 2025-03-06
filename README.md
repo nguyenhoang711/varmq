@@ -1,180 +1,242 @@
-# GoCQ - Go Concurrent Queue
+# 🚀 GoCQ: High-Performance Concurrent Queue for Gophers
 
-GoCQ is a high-performance, generic concurrent queue implementation in Go that supports both regular FIFO queues and priority queues with configurable concurrency levels.
+Package gocq offers a concurrent queue system using channels and goroutines, supporting both FIFO and priority operations.
 
-## Features
+[![Go Version](https://img.shields.io/badge/Go-1.24+-00ADD8?style=flat-square&logo=go)](https://golang.org/doc/devel/release.html)
+[![License](https://img.shields.io/badge/license-MIT-blue.svg?style=flat-square)](LICENSE)
+
+GoCQ is a high-performance concurrent queue for Go, optimized for efficient task processing. It supports both FIFO and priority queues, featuring non-blocking job submission, dedicated worker channels, and a pre-allocated worker pool to ensure smooth and controlled concurrency. With optimized memory management, GoCQ minimizes allocations and prevents goroutine leaks, making it a reliable choice for high-throughput applications
+
+## 🌟 Features
 
 - Generic type support for both data and results
-- Configurable concurrency levels
-- Priority queue support
-- Non-blocking operations
-- Channel-based communication
-- Simple and intuitive API
+- Configurable concurrency limits
+- FIFO queue with O(1) operations
+- Priority queue support with O(log n) operations
+- Pause/Resume functionality
+- Clean and graceful shutdown mechanisms
 - Thread-safe operations
+- Non-blocking job submission
 
-## Installation
+## 📋 Table of Contents
+
+- [Installation](#installation)
+- [Quick Start](#quick-start)
+- [API Reference](#api-reference)
+  - [Standard Queue](#standard-queue)
+  - [Priority Queue](#priority-queue)
+- [Examples](#examples)
+- [Performance](#performance)
+
+## 🔧 Installation
 
 ```bash
 go get github.com/fahimfaisaal/gocq
 ```
 
-## Usage
-
-### Regular Concurrent Queue
+## 🚀 Quick Start
 
 ```go
-// Create a new queue with 4 concurrent workers
-queue := gocq.New(4, func(data int) int {
-    // Worker function that processes the data
+package main
+
+import (
+  "fmt"
+  "time"
+
+  "github.com/fahimfaisaal/gocq"
+)
+
+func main() {
+  // Create a queue with 2 concurrent workers
+  queue := gocq.NewQueue(2, func(data int) int {
+    time.Sleep(500 * time.Millisecond)
     return data * 2
-})
-defer queue.Close()
+  })
+  defer queue.Close()
 
-// Add a single item
-result := <-queue.Add(5) // result will be 10
+  // Add a single job
+  result := <-queue.Add(5)
+  fmt.Println(result) // Output: 10
 
-// Add multiple items
-numbers := []int{1, 2, 3, 4, 5}
-results := queue.AddAll(numbers...)
-for result := range results {
-    // Process results as they complete
-    fmt.Println(result)
+  // Add multiple jobs
+  results := queue.AddAll(1, 2, 3, 4, 5)
+  for result := range results {
+    fmt.Println(result) // Output: 2, 4, 6, 8, 10 (unordered)
+  }
 }
 ```
 
-### Priority Concurrent Queue
+## 📚 API Reference
 
-```go
-// Create a priority queue with 4 concurrent workers
-pq := gocq.NewPriorityQueue(4, func(data int) int {
-    return data * 2
-})
-defer pq.Close()
+### Standard Queue (FIFO)
 
-// Add items with different priorities (lower number = higher priority)
-result1 := <-pq.Add(5, 1)  // priority 1
-result2 := <-pq.Add(10, 2) // priority 2
+#### State Management Methods
 
-// Add multiple items with the same priority
-numbers := []int{1, 2, 3, 4, 5}
-results := pq.AddAll(1, numbers...) // all with priority 1
-for result := range results {
-    fmt.Println(result)
-}
-```
+#### `PendingCount() int`
 
-## API Reference
+Returns the number of jobs waiting to be processed.
 
-### Initialization
+- Time Complexity: O(1)
+- Returns: Number of pending jobs
 
-- `Init() *concurrentQueue[T, R]`
-  - Initializes the queue by starting worker goroutines
-  - Called automatically by `New()` and `NewPriorityQueue()`
-  - Returns the initialized queue
-  - Time complexity: O(n) where n is the concurrency level
+#### `CurrentProcessingCount() uint`
 
-### Regular Queue
+Returns the number of jobs currently being processed.
 
-- `New[T, R any](concurrency uint, worker func(T) R) *concurrentQueue[T, R]`
+- Time Complexity: O(1)
+- Returns: Number of active jobs
 
-  - Creates a new concurrent queue with specified concurrency level
-  - Generic types T (input) and R (output)
-  - Automatically calls `Init()` to start worker goroutines
+#### `IsPaused() bool`
 
-- `Add(data T) <-chan R`
+Checks if the queue is currently paused.
 
-  - Adds a single item to the queue
-  - Returns a channel for the result
+- Time Complexity: O(1)
+- Returns: true if paused, false otherwise
 
-- `AddAll(data ...T) <-chan R`
-  - Adds multiple items to the queue
-  - Returns a channel that receives all results
+#### Queue Operation Methods
+
+#### `NewQueue[T, R any](concurrency uint, worker func(T) R) *concurrentQueue[T, R]`
+
+Creates a new concurrent FIFO queue.
+
+- Time Complexity: O(c) where c is concurrency and spawns c goroutines
+- Parameters:
+  - `concurrency`: Maximum number of concurrent workers
+  - `worker`: Function to process each job
+- Returns: A new concurrent queue instance
+
+#### `Add(data T) <-chan R`
+
+Adds a single job to the queue.
+
+- Time Complexity: O(1)
+- Returns: Merged channel to receive all results
+
+#### `AddAll(data ...T) <-chan R`
+
+Adds multiple jobs to the queue.
+
+- Time Complexity: O(n) where n is number of jobs
+- Returns: Channel to receive all results in order
+
+#### `Pause() *concurrentQueue[T, R]`
+
+Pauses job processing.
+
+- Time Complexity: O(1)
+- Returns: Queue instance for chaining
+
+#### `Resume()`
+
+Resumes job processing.
+
+- Time Complexity: O(c) where c is the concurrency
+
+#### Cleanup and Wait Methods
+
+#### `Purge()`
+
+Removes all pending jobs from the queue.
+
+- Time Complexity: O(n) where n is number of pending jobs
+- Note: Closes response channels for all purged jobs
+- Effect: All pending jobs are removed, but currently processing jobs continue
+
+#### `WaitUntilFinished()`
+
+Blocks until all pending jobs complete.
+
+#### `Close()`
+
+Closes the queue and cleans up resources.
+
+> Note: Waits for current processing jobs to finish
+
+#### `WaitAndClose()`
+
+Waits for completion of each pending job and closes the queue. combines `WaitUntilFinished()` and `Close()`
 
 ### Priority Queue
 
-- `NewPriorityQueue[T, R any](concurrency uint, worker func(T) R) *concurrentPriorityQueue[T, R]`
+**The priority queue extends the standard queue with priority support.**
 
-  - Creates a new concurrent priority queue
-  - Generic types T (input) and R (output)
-  - Automatically calls `Init()` to start worker goroutines
+#### `NewPriorityQueue[T, R any](concurrency uint, worker func(T) R) *concurrentPriorityQueue[T, R]`
 
-- `Add(data T, priority int) <-chan R`
+Creates a new concurrent priority queue.
 
-  - Adds an item with specified priority
-  - Lower priority number = higher priority
+- Time Complexity: O(1)
+- Parameters:
+  - `concurrency`: Maximum number of concurrent workers
+  - `worker`: Function to process each job
+- Returns: A new priority queue instance
 
-- `AddAll(priority int, data ...T) <-chan R`
-  - Adds multiple items with the same priority
+#### `Add(data T, priority int) <-chan R`
 
-### Common Methods
+Adds a job with priority (lower number = higher priority).
 
-- `WaitUntilFinished()`
+- Time Complexity: O(log n) where n is queue size
+- Parameters:
+  - `priority`: Lower value means higher priority
+- Returns: Channel to receive the result
 
-  - Waits for all pending jobs to complete
+#### `AddAll(items []PQItem[T]) <-chan R`
 
-- `Purge()`
+Adds multiple prioritized jobs.
 
-  - Removes all pending jobs from the queue
-  - Closes response channels for pending jobs
-  - Does not affect currently processing jobs
-  - Useful for clearing the queue without waiting for completion
-  - Thread-safe operation
+- Time Complexity: O(n log n) where n is number of items
+- Returns: Merged channel to receive all results in priority order
 
-- `Close()`
+## 💡 Examples
 
-  - Closes the queue and cleans up resources
-  - Calls `Purge()` internally
-  - Waits for ongoing processes to complete
-  - Closes all worker channels
-  - Resets internal channels and states
-
-- `WaitAndClose()`
-
-  - Waits for completion and closes the queue
-  - Combination of `WaitUntilFinished()` and `Close()`
-
-- `PendingCount() int`
-
-  - Returns the number of pending jobs
-
-- `CurrentProcessingCount() uint`
-  - Returns the number of jobs currently being processed
-
-### Usage Example with Purge
+### Priority Queue Example
 
 ```go
-queue := gocq.New(4, func(data int) int {
+queue := gocq.NewPriorityQueue(1, func(data int) int {
     return data * 2
 })
-defer queue.Close()
+defer queue.WaitAndClose()
 
-// Add some items
-for i := 0; i < 100; i++ {
-    queue.Add(i)
+// Add jobs with different priorities
+items := []gocq.PQItem[int]{
+    {Value: 1, Priority: 2}, // Lowest priority
+    {Value: 2, Priority: 1}, // Medium priority
+    {Value: 3, Priority: 0}, // Highest priority
 }
 
-// Clear all pending jobs without waiting
-queue.Purge()
-
-// Add new items after purge
-queue.Add(1)
+results := queue.AddAll(items)
+for result := range results {
+    fmt.Println(result) // Output: 6, 4, 2 (processed by priority)
+}
 ```
 
-## Internal Implementation Details
+### Pause/Resume Example
 
-The queue initialization process:
+```go
+queue := gocq.NewQueue(2, func(data int) int {
+    return data * 2
+}).Pause() // paused
 
-1. Creates worker channels based on the specified concurrency level
-2. Starts goroutines for each worker channel
-3. Sets up the job processing pipeline
-4. Initializes internal synchronization mechanisms
+// Add jobs while paused (non-blocking)
+resp1 := queue.Add(1)
+resp2 := queue.Add(2)
 
-Note: Users don't need to call `Init()` directly as it's automatically called by the constructor functions (`New()` and `NewPriorityQueue()`).
+// Resume processing
+queue.Resume()
 
-## License
+fmt.Println(<-resp1, <-resp2) // Output: 2 4
+```
 
-MIT License
+## 🚀 Performance
 
-## Contributing
+The implementation uses efficient data structures:
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+- Standard Queue: Based on `container/list` with O(1) operations
+- Priority Queue: Based on `container/heap` implementation with O(log n) operations
+- Non-blocking job submission
+- Efficient worker pool management using channels and goroutines
+
+## 👤 Author (Fahim Faisaal)
+
+- GitHub: [@fahimfaisaal](https://github.com/fahimfaisaal)
+- LinkedIn: [in/fahimfaisaal](https://www.linkedin.com/in/fahimfaisaal/)
+- Twitter: [@FahimFaisaal](https://twitter.com/FahimFaisaal)
