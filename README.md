@@ -95,7 +95,7 @@ Checks if the queue is currently paused.
 
 #### Queue Operation Methods
 
-#### `NewQueue[T, R any](concurrency uint, worker func(T) R) *concurrentQueue[T, R]`
+#### `NewQueue[T, R any](concurrency uint, worker func(T) R) *ConcurrentQueue[T, R]`
 
 Creates a new concurrent FIFO queue.
 
@@ -119,7 +119,7 @@ Adds multiple jobs to the queue.
 - Time Complexity: O(n) where n is number of jobs
 - Returns: Channel to receive all results in order
 
-#### `Pause() *concurrentQueue[T, R]`
+#### `Pause() *ConcurrentQueue[T, R]`
 
 Pauses job processing.
 
@@ -160,7 +160,7 @@ Waits for completion of each pending job and closes the queue. combines `WaitUnt
 
 **The priority queue extends the standard queue with priority support.**
 
-#### `NewPriorityQueue[T, R any](concurrency uint, worker func(T) R) *concurrentPriorityQueue[T, R]`
+#### `NewPriorityQueue[T, R any](concurrency uint, worker func(T) R) *ConcurrentPriorityQueue[T, R]`
 
 Creates a new concurrent priority queue.
 

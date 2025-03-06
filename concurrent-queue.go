@@ -13,7 +13,7 @@ type PQItem[T any] struct {
 	Priority int
 }
 
-type concurrentQueue[T, R any] struct {
+type ConcurrentQueue[T, R any] struct {
 	concurrency   uint
 	worker        func(T) R
 	channelsStack []chan *types.Job[T, R]
@@ -24,13 +24,13 @@ type concurrentQueue[T, R any] struct {
 	isPaused      atomic.Bool
 }
 
-// Creates a new concurrentQueue with the specified concurrency and worker function.
+// Creates a new ConcurrentQueue with the specified concurrency and worker function.
 // Internally it calls Init() to start the worker goroutines based on the concurrency.
-func NewQueue[T, R any](concurrency uint, worker func(T) R) *concurrentQueue[T, R] {
+func NewQueue[T, R any](concurrency uint, worker func(T) R) *ConcurrentQueue[T, R] {
 	channelsStack := make([]chan *types.Job[T, R], concurrency)
 	wg, mx, jobQueue := new(sync.WaitGroup), new(sync.Mutex), queue.NewQueue[*types.Job[T, R]]()
 
-	queue := &concurrentQueue[T, R]{
+	queue := &ConcurrentQueue[T, R]{
 		concurrency:   concurrency,
 		worker:        worker,
 		channelsStack: channelsStack,
@@ -44,9 +44,9 @@ func NewQueue[T, R any](concurrency uint, worker func(T) R) *concurrentQueue[T, 
 	return queue.Init()
 }
 
-// Initializes the concurrentQueue by starting the worker goroutines.
+// Initializes the ConcurrentQueue by starting the worker goroutines.
 // Time complexity: O(n) where n is the concurrency
-func (q *concurrentQueue[T, R]) Init() *concurrentQueue[T, R] {
+func (q *ConcurrentQueue[T, R]) Init() *ConcurrentQueue[T, R] {
 	for i := range q.concurrency {
 		// if channel is not nil, close it
 		// reason: to avoid routine leaks
@@ -83,7 +83,7 @@ func (q *concurrentQueue[T, R]) Init() *concurrentQueue[T, R] {
 
 // Picks the next available channel for processing a Job.
 // Time complexity: O(1)
-func (q *concurrentQueue[T, R]) pickNextChannel() chan<- *types.Job[T, R] {
+func (q *ConcurrentQueue[T, R]) pickNextChannel() chan<- *types.Job[T, R] {
 	q.mx.Lock()
 	defer q.mx.Unlock()
 	l := len(q.channelsStack)
@@ -95,7 +95,7 @@ func (q *concurrentQueue[T, R]) pickNextChannel() chan<- *types.Job[T, R] {
 }
 
 // Determines if the next job should be processed based on the current state.
-func (q *concurrentQueue[T, R]) shouldProcessNextJob(state string) bool {
+func (q *ConcurrentQueue[T, R]) shouldProcessNextJob(state string) bool {
 	switch state {
 	case "add":
 		return !q.isPaused.Load() && q.curProcessing < q.concurrency
@@ -109,7 +109,7 @@ func (q *concurrentQueue[T, R]) shouldProcessNextJob(state string) bool {
 }
 
 // Processes the next Job in the queue.
-func (q *concurrentQueue[T, R]) processNextJob() {
+func (q *ConcurrentQueue[T, R]) processNextJob() {
 	value, has := q.jobQueue.Dequeue()
 
 	if !has {
@@ -125,29 +125,29 @@ func (q *concurrentQueue[T, R]) processNextJob() {
 
 // Returns the number of Jobs pending in the queue.
 // Time complexity: O(1)
-func (q *concurrentQueue[T, R]) PendingCount() int {
+func (q *ConcurrentQueue[T, R]) PendingCount() int {
 	return q.jobQueue.Len()
 }
 
 // IsPaused returns whether the queue is paused.
-func (q *concurrentQueue[T, R]) IsPaused() bool {
+func (q *ConcurrentQueue[T, R]) IsPaused() bool {
 	return q.isPaused.Load()
 }
 
 // Returns the number of Jobs currently being processed.
 // Time complexity: O(1)
-func (q *concurrentQueue[T, R]) CurrentProcessingCount() uint {
+func (q *ConcurrentQueue[T, R]) CurrentProcessingCount() uint {
 	return q.curProcessing
 }
 
 // Pause pauses the processing of jobs.
-func (q *concurrentQueue[T, R]) Pause() *concurrentQueue[T, R] {
+func (q *ConcurrentQueue[T, R]) Pause() *ConcurrentQueue[T, R] {
 	q.isPaused.Store(true)
 	return q
 }
 
 // Resume continues processing jobs.
-func (q *concurrentQueue[T, R]) Resume() {
+func (q *ConcurrentQueue[T, R]) Resume() {
 	q.isPaused.Store(false)
 
 	// Process pending jobs if any
@@ -162,7 +162,7 @@ func (q *concurrentQueue[T, R]) Resume() {
 
 // Adds a new Job to the queue and returns a channel to receive the response and a cancel function.
 // Time complexity: O(1)
-func (q *concurrentQueue[T, R]) Add(data T) <-chan R {
+func (q *ConcurrentQueue[T, R]) Add(data T) <-chan R {
 	q.mx.Lock()
 	defer q.mx.Unlock()
 
@@ -184,7 +184,7 @@ func (q *concurrentQueue[T, R]) Add(data T) <-chan R {
 
 // Adds multiple Jobs to the queue and returns a channel to receive all responses.
 // Time complexity: O(n) where n is the number of Jobs added
-func (q *concurrentQueue[T, R]) AddAll(data ...T) <-chan R {
+func (q *ConcurrentQueue[T, R]) AddAll(data ...T) <-chan R {
 	wg := new(sync.WaitGroup)
 	merged := make(chan R, len(data))
 
@@ -208,12 +208,12 @@ func (q *concurrentQueue[T, R]) AddAll(data ...T) <-chan R {
 
 // Waits until all pending Jobs in the queue are processed.
 // Time complexity: O(n) where n is the number of pending Jobs
-func (q *concurrentQueue[T, R]) WaitUntilFinished() {
+func (q *ConcurrentQueue[T, R]) WaitUntilFinished() {
 	q.wg.Wait()
 }
 
 // Remove all pending Jobs from the queue.
-func (q *concurrentQueue[T, R]) Purge() {
+func (q *ConcurrentQueue[T, R]) Purge() {
 	q.mx.Lock()
 	defer q.mx.Unlock()
 
@@ -229,7 +229,7 @@ func (q *concurrentQueue[T, R]) Purge() {
 
 // Closes the queue and resets all internal states.
 // Time complexity: O(n) where n is the number of channels
-func (q *concurrentQueue[T, R]) Close() {
+func (q *ConcurrentQueue[T, R]) Close() {
 	q.Purge()
 
 	// wait until all ongoing processes are done
@@ -248,7 +248,7 @@ func (q *concurrentQueue[T, R]) Close() {
 
 // Waits until all pending Jobs in the queue are processed and then closes the queue.
 // Time complexity: O(n) where n is the number of pending Jobs
-func (q *concurrentQueue[T, R]) WaitAndClose() {
+func (q *ConcurrentQueue[T, R]) WaitAndClose() {
 	q.wg.Wait()
 	q.Close()
 }
