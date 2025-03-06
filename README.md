@@ -20,13 +20,13 @@ GoCQ is a high-performance concurrent queue for Go, optimized for efficient task
 
 ## 📋 Table of Contents
 
-- [Installation](#installation)
-- [Quick Start](#quick-start)
-- [API Reference](#api-reference)
-  - [Standard Queue](#standard-queue)
+- [Installation](#-installation)
+- [Quick Start](#-quick-start)
+- [API Reference](#-api-reference)
+  - [Standard Queue](#standard-queue-fifo)
   - [Priority Queue](#priority-queue)
-- [Examples](#examples)
-- [Performance](#performance)
+- [Examples](#-examples)
+- [Performance](#-performance)
 
 ## 🔧 Installation
 
