@@ -1,6 +1,7 @@
 package gocq
 
 import (
+	"runtime"
 	"testing"
 	"time"
 )
@@ -80,8 +81,10 @@ func TestConcurrentPriorityQueue(t *testing.T) {
 }
 
 func BenchmarkPriorityQueue_Operations(b *testing.B) {
+	cpus := uint(runtime.NumCPU())
+
 	b.Run("Add", func(b *testing.B) {
-		q := NewPriorityQueue(20, func(data int) int {
+		q := NewPriorityQueue(cpus, func(data int) int {
 			return data * 2
 		})
 		defer q.Close()
@@ -94,7 +97,7 @@ func BenchmarkPriorityQueue_Operations(b *testing.B) {
 	})
 
 	b.Run("AddAll", func(b *testing.B) {
-		q := NewPriorityQueue(20, func(data int) int {
+		q := NewPriorityQueue(cpus, func(data int) int {
 			return data * 2
 		})
 		defer q.Close()
