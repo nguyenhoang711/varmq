@@ -261,14 +261,10 @@ goos: linux
 goarch: amd64
 pkg: github.com/fahimfaisaal/gocq
 cpu: 13th Gen Intel(R) Core(TM) i7-13700
-BenchmarkPriorityQueue_Add
-BenchmarkPriorityQueue_Add-24            1000000              1139 ns/op
-BenchmarkPriorityQueue_AddAll
-BenchmarkPriorityQueue_AddAll-24             652           1822275 ns/op
-BenchmarkQueue_Add
-BenchmarkQueue_Add-24                    1233195              1047 ns/op
-BenchmarkQueue_AddAll
-BenchmarkQueue_AddAll-24                     930           2152871 ns/op
+BenchmarkPriorityQueue_Operations/Add-24                 1378249              1278 ns/op
+BenchmarkPriorityQueue_Operations/AddAll-24               795332              1712 ns/op
+BenchmarkQueue_Operations/Add-24                         1000000              1300 ns/op
+BenchmarkQueue_Operations/AddAll-24                      1000000              1822 ns/op
 ```
 
 ## 👤 Author (Fahim Faisaal)

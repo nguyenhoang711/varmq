@@ -158,35 +158,35 @@ func TestConcurrentQueue(t *testing.T) {
 	})
 }
 
-func BenchmarkQueue_Add(b *testing.B) {
-	q := NewQueue(20, func(data int) int {
-		return data * 2
+func BenchmarkQueue_Operations(b *testing.B) {
+	b.Run("Add", func(b *testing.B) {
+		q := NewQueue(20, func(data int) int {
+			return data * 2
+		})
+		defer q.Close()
+
+		b.ResetTimer()
+		for j := 0; j < b.N; j++ {
+			<-q.Add(j)
+		}
 	})
-	defer q.Close()
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		<-q.Add(i)
-	}
-}
+	b.Run("AddAll", func(b *testing.B) {
+		q := NewQueue(20, func(data int) int {
+			return data * 2
+		})
+		defer q.Close()
 
-func BenchmarkQueue_AddAll(b *testing.B) {
-	q := NewQueue(10, func(data int) int {
-		return data * 2
-	})
-	defer q.Close()
+		data := make([]int, b.N)
+		for i := range data {
+			data[i] = i
+		}
 
-	data := make([]int, 1000)
-	for i := range data {
-		data[i] = i
-	}
-
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+		b.ResetTimer()
 		out := q.AddAll(data...)
-
 		for range out {
 			// drain the channel
 		}
-	}
+	})
+
 }
