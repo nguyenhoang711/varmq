@@ -166,8 +166,7 @@ func BenchmarkQueue_Add(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		out := q.Add(i)
-		<-out
+		<-q.Add(i)
 	}
 }
 
@@ -189,36 +188,5 @@ func BenchmarkQueue_AddAll(b *testing.B) {
 		for range out {
 			// drain the channel
 		}
-	}
-}
-
-func BenchmarkQueue_WaitUntilFinished(b *testing.B) {
-	q := NewQueue(20, func(data int) int {
-		return data * 2
-	})
-	defer q.Close()
-
-	for i := 0; i < 1000; i++ {
-		q.Add(i)
-	}
-
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		q.WaitUntilFinished()
-	}
-}
-
-func BenchmarkQueue_WaitAndClose(b *testing.B) {
-	q := NewQueue(20, func(data int) int {
-		return data * 2
-	})
-
-	for i := 0; i < 1000; i++ {
-		q.Add(i)
-	}
-
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		q.WaitAndClose()
 	}
 }
