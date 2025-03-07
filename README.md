@@ -1,11 +1,11 @@
-# 🚀 GoCQ: High-Performance Concurrent Queue for Gophers
+# GoCQ: High-Performance Concurrent Queue for Gophers
 
 Package gocq offers a concurrent queue system using channels and goroutines, supporting both FIFO and priority operations.
 
 [![Go Version](https://img.shields.io/badge/Go-1.24+-00ADD8?style=flat-square&logo=go)](https://golang.org/doc/devel/release.html)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg?style=flat-square)](LICENSE)
 
-GoCQ is a high-performance concurrent queue for Go, optimized for efficient task processing. It supports both FIFO and priority queues, featuring non-blocking job submission, dedicated worker channels, and a pre-allocated worker pool to ensure smooth and controlled concurrency. With optimized memory management, GoCQ minimizes allocations and prevents goroutine leaks, making it a reliable choice for high-throughput applications
+GoCQ is a high-performance concurrent queue for Go, optimized for efficient task processing. It supports both FIFO and priority queues, featuring non-blocking job submission, dedicated worker channels, and a pre-allocated worker pool to ensure smooth and controlled concurrency. With optimized memory management, GoCQ minimizes allocations and prevents goroutine leaks, making it a reliable choice for high-throughput applications.
 
 ## 🌟 Features
 
@@ -70,6 +70,88 @@ func main() {
 
 ### Standard Queue (FIFO)
 
+#### `NewQueue[T, R any](concurrency uint, worker func(T) R) *ConcurrentQueue[T, R]`
+
+Creates a new concurrent FIFO queue.
+
+- Time Complexity: O(c) where c is concurrency and spawns c goroutines
+- Parameters:
+  - `concurrency`: Maximum number of concurrent workers
+  - `worker`: Function to process each job
+- Returns: A new concurrent queue instance
+
+#### Queue Operation Methods
+
+#### `Init() *ConcurrentQueue[T, R]`
+
+Initializes the queue and starts worker goroutines.
+
+- Time Complexity: O(c) where c is concurrency
+- Returns: Queue instance for chaining
+- Effect: Starts worker goroutines and closes old ones
+
+> Note: Closes old channels to prevent routine leaks
+
+#### `Add(data T) <-chan R`
+
+Adds a single job to the queue.
+
+- Time Complexity: O(1)
+- Returns: Channel to receive the result
+
+#### `AddAll(data ...T) <-chan R`
+
+Adds multiple jobs to the queue.
+
+- Time Complexity: O(n) where n is number of jobs
+- Returns: Merged channel to receive all results
+
+#### `Pause() *ConcurrentQueue[T, R]`
+
+Pauses job processing.
+
+- Time Complexity: O(1)
+- Returns: Queue instance for chaining
+- Effect: Stops processing next pending jobs
+
+#### `Resume()`
+
+Resumes job processing.
+
+- Time Complexity: O(c) where c is the concurrency
+- Effect: Processes next pending jobs up to concurrency limit
+
+#### Cleanup and Wait Methods
+
+#### `Purge()`
+
+Removes all pending jobs from the queue.
+
+- Time Complexity: O(n) where n is number of pending jobs
+- Effect: All pending jobs are removed, but currently processing jobs will continue
+
+> Note: Closes response channels for all purged jobs
+
+#### `WaitUntilFinished()`
+
+Blocks until all pending jobs complete.
+
+- Time Complexity: O(n) where n is number of currently processing and pending jobs
+- Effect: Blocks until all pending jobs are processed
+
+#### `Close()`
+
+Closes the queue and cleans up resources.
+
+- Time Complexity: O(c) where c is concurrency
+- Effect: Closes all channels and resets internal state
+
+> Note: Uses `Purge()` to remove pending jobs and then `WaitUntilFinished()` for waiting currently processing jobs internally
+
+#### `WaitAndClose()`
+
+Waits for completion of each pending job and closes the queue. executes `WaitUntilFinished()` and then `Close()`
+
 #### State Management Methods
 
 #### `PendingCount() int`
@@ -92,69 +174,6 @@ Checks if the queue is currently paused.
 
 - Time Complexity: O(1)
 - Returns: true if paused, false otherwise
-
-#### Queue Operation Methods
-
-#### `NewQueue[T, R any](concurrency uint, worker func(T) R) *ConcurrentQueue[T, R]`
-
-Creates a new concurrent FIFO queue.
-
-- Time Complexity: O(c) where c is concurrency and spawns c goroutines
-- Parameters:
-  - `concurrency`: Maximum number of concurrent workers
-  - `worker`: Function to process each job
-- Returns: A new concurrent queue instance
-
-#### `Add(data T) <-chan R`
-
-Adds a single job to the queue.
-
-- Time Complexity: O(1)
-- Returns: Merged channel to receive all results
-
-#### `AddAll(data ...T) <-chan R`
-
-Adds multiple jobs to the queue.
-
-- Time Complexity: O(n) where n is number of jobs
-- Returns: Channel to receive all results in order
-
-#### `Pause() *ConcurrentQueue[T, R]`
-
-Pauses job processing.
-
-- Time Complexity: O(1)
-- Returns: Queue instance for chaining
-
-#### `Resume()`
-
-Resumes job processing.
-
-- Time Complexity: O(c) where c is the concurrency
-
-#### Cleanup and Wait Methods
-
-#### `Purge()`
-
-Removes all pending jobs from the queue.
-
-- Time Complexity: O(n) where n is number of pending jobs
-- Note: Closes response channels for all purged jobs
-- Effect: All pending jobs are removed, but currently processing jobs continue
-
-#### `WaitUntilFinished()`
-
-Blocks until all pending jobs complete.
-
-#### `Close()`
-
-Closes the queue and cleans up resources.
-
-> Note: Waits for current processing jobs to finish
-
-#### `WaitAndClose()`
-
-Waits for completion of each pending job and closes the queue. combines `WaitUntilFinished()` and `Close()`
 
 ### Priority Queue
 
@@ -192,6 +211,7 @@ Adds multiple prioritized jobs.
 
 ```go
 queue := gocq.NewPriorityQueue(1, func(data int) int {
+    time.Sleep(500 * time.Millisecond)
     return data * 2
 })
 defer queue.WaitAndClose()
@@ -213,6 +233,7 @@ for result := range results {
 
 ```go
 queue := gocq.NewQueue(2, func(data int) int {
+    time.Sleep(500 * time.Millisecond)
     return data * 2
 }).Pause() // paused
 
@@ -223,7 +244,7 @@ resp2 := queue.Add(2)
 // Resume processing
 queue.Resume()
 
-fmt.Println(<-resp1, <-resp2) // Output: 2 4
+fmt.Println(<-resp1, <-resp2) // Output: 2 4 (unordered due to concurrency)
 ```
 
 ## 🚀 Performance
