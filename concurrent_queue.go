@@ -95,8 +95,8 @@ func (q *ConcurrentQueue[T, R]) pickNextChannel() chan<- *types.Job[T, R] {
 }
 
 // Determines if the next job should be processed based on the current state.
-func (q *ConcurrentQueue[T, R]) shouldProcessNextJob(state string) bool {
-	switch state {
+func (q *ConcurrentQueue[T, R]) shouldProcessNextJob(action string) bool {
+	switch action {
 	case "add":
 		return !q.isPaused.Load() && q.curProcessing < q.concurrency
 	case "resume":
