@@ -25,7 +25,7 @@ func main() {
 		fmt.Println("Time taken:", time.Since(start))
 	}()
 
-	redisQueue := redisq.New("redis://localhost:6375")
+	redisQueue := redisq.New("redis://localhost:6379")
 	defer redisQueue.Close()
 	rq := redisQueue.NewDistributedQueue("scraping_queue")
 	pq := varmq.NewDistributedQueue[[]string](rq)
