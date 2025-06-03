@@ -14,7 +14,7 @@ func main() {
 		fmt.Println("Time taken:", time.Since(start))
 	}()
 
-	redisQueue := redisq.New("redis://localhost:6375")
+	redisQueue := redisq.New("redis://localhost:6379")
 	defer redisQueue.Close()
 	rq := redisQueue.NewDistributedQueue("scraping_queue")
 	defer rq.Close()
@@ -24,6 +24,7 @@ func main() {
 		data := j.Data()
 		url, id := data[0], data[1]
 		fmt.Printf("Scraping url: %s, id: %s\n", url, id)
+		// Simulate scraping work
 		time.Sleep(2 * time.Second)
 		fmt.Printf("Scraped url: %s, id: %s\n", url, id)
 	}, 5)
